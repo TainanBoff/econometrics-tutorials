@@ -1,0 +1,241 @@
+---
+title: "Exemplos de Econometria Aplicada em R"
+author: "Tainan Boff"
+date: "31 de agosto de 2016"
+output: pdf_document
+bibliography: referencias.bib
+abstract: "Ao iniciar o estudo de Econometria, os alunos se deparam com uma grande diversidade de softwares estatísticos disponíveis para uso e, muitas vezes, têm dúvidas sobre qual programa deveriam aprender. Para tomar esta decisão, em geral, avaliam se o software é gratuito (ou disponibilizado pela universidade) ou pago, o _trade-off_ existente entre facilidade de uso vs. flexibilidade e o quanto um ou outro programa tem seu uso mais difundido entre pesquisadores e profissionais da área de interesse do aluno. Entre os pacotes mais conhecidos, podemos citar Gretl, Minitab, Eviews, Stata, Matlab, SAS, SPSS, R, etc. Entre as vantagens em utilizar o R estão o fato de ele ser um software livre, com código aberto, sendo possível encontrar funções prontas para um grande número de análises ou desenvolver suas próprias funções. Entre as desvantagens, o R utiliza uma interface de linha de comando que pode ser  desconfortável para usuários leigos em linguagem de programação e sua curva de aprendizado é lenta no começo. Este documento fará uma breve apresentação de como o R pode ser usado para replicar os exemplos vistos nas aulas da disciplina de Econometria Aplicada. Ele está voltando sobretudo para aqueles alunos que não estão familiarizados com este software."
+---
+## Download do R e do R Studio
+  
+http://cran-r.c3sl.ufpr.br
+
+https://www.rstudio.com/products/rstudio/download3/
+  
+## Exemplo: Regressão simples
+  
+  Defina o diretório de trabalho do R, de modo que ele saiba onde salvar / procurar os seus dados. Atenção às barras: o R aceitará "/" ou "$\backslash\backslash$".
+
+```{r}
+setwd("/Users/tainanboff/Documents/Graduação/Econometria aplicada/excelfiles")
+```
+
+  Neste exemplo, utilizaremos a base de dados WAGE1 disponibilizada pelo autor Jeffrey M. Wooldridge. Para fazer o download de dados da internet, utilize a seguinte função:
+  
+```{r, eval=FALSE}
+download.file('http://fmwww.bc.edu/ec-p/data/wooldridge/wage1.dta','wage1.dta', mode='wb')
+```
+
+  Como argumentos da função "download.file", inserimos, entre aspas, a url onde os dados foram disponibilizados, o nome que este arquivo receberá em nosso computador e o modo como o arquivo será gravado (formato binário). Para mais detalhes sobre os argumentos de uma função, utilize a aba "help" do R Studio.
+
+  Agora que salvamos a base de dados no computador, o próximo passo consiste em "ler" o arquivo no R. Como o nosso arquivo possui a extensão .dta, que é um formato do Stata (outro software estatístico), precisaremos baixar um pacote específico no R, o qual possui uma função que permite ler arquivos neste formato. 
+
+  Para instalar um pacote, utilizamos a função install.packages. Observe que escolhemos o servidor da UFPR, pois é o mais próximo de Porto Alegre, reduzindo a carga de rede.
+
+```{r, eval=FALSE}
+install.packages("foreign", repos = "http://cran-r.c3sl.ufpr.br/")
+```
+
+  Para carregar este pacote, podemos utilizar duas funções diferentes:
+  
+```{r, message=FALSE}
+require(foreign) # ou
+library(foreign)
+```
+
+  Agora, estamos prontos para ler o arquivo. Como não queremos apenas visualizar a base de dados, mas sim utilizá-la para a análise de regressão, vamos criar um objeto chamado wage1 e atribuir os dados a este objeto. Observe que ele irá aparecer no canto superior direito do R Studio (ambiente).
+
+```{r}
+wage1 <- read.dta("wage1.dta")
+```
+
+  Para que possamos chamar cada uma das variáveis que compõem essa base de dados pelo seu nome (ex.: wage, married, etc.), utilizamos a seguinte função:
+  
+```{r}
+attach(wage1)
+```
+
+  O nome das variáveis está em inglês. Se quisermos alterá-los, podemos usar a seguinte função:
+  
+```{r, eval = FALSE}
+colnames(ceosal1) = c("nome da coluna 1", "nome da coluna 2", etc. )
+```
+
+  Mas nesse exemplo, vamos utilizar os nomes originais.
+
+  A base WAGE1 contém dados de corte transversal de 526 trabalhadores no ano de 1976. As variáveis incluem salários em dólares por hora (\textit{wage}), anos de educação (\textit{educ}), anos de experiência potencial da força de trabalho (\textit{exper}), o tempo de permanência no mesmo emprego (_tenure_), uma variável dummy para sexo feminino (\textit{female}), uma para estado civil igual a casado (\textit{married}), etc.
+
+Vamos iniciar reproduzindo o exemplo 2.4 de @wooldridge, no qual para estudar  a relação que existe entre os anos de educação e o salário por hora, podemos estimar o seguinte modelo de regressão linear:
+  
+  \[wage = \beta_0 + \beta_1 educ + u\]
+
+Podemos iniciar o nosso estudo analisando as estatísticas descritivas das variáveis (mínimo, primeiro quartil, mediana, média, terceiro quartil, máximo) e o gráfico com a nuvem de pontos:
+  
+```{r, fig.align='center', out.width='70%'}
+summary(wage1)
+plot(educ, wage)
+```
+
+Para estimar um modelo de regressão no R, utilizamos a função `<lm>`. Podemos estimar o modelo com ou sem intercepto e adicionar a reta de regressão à nuvem de pontos:
+  
+```{r, fig.align='center', out.width='70%'}
+regressao1 <- lm(wage ~ educ)
+regressao2 <- lm(wage ~ educ - 1) # ou
+regressao2 <- lm(wage ~ 0 + educ)
+
+plot(educ, wage)
+abline(regressao1, col="red")
+```
+
+Vejamos um resumo dos resultados obtidos nos modelo com intercepto e sem intercepto:
+  
+```{r}
+summary(regressao1)
+summary(regressao2)
+anova(regressao1)
+anova(regressao2)
+```
+
+Podemos obter um intervalo de confiança de 95\% para o valor dos parâmetros e um intervalo de previsão para os valores ajustados:
+
+```{r, fig.align='center', out.width='70%', message=FALSE}
+confint(regressao1)
+IP <- predict(regressao1, interval="predict")
+head(IP)
+
+plot(educ, wage)
+abline(regressao1, col="red")
+matlines(educ, IP[ , c("lwr","upr")], col = "blue")
+```
+
+Vamos fazer um diagnóstico do modelo através de análise gráfica. Para investigar se a função de regressão é linear e se os resíduos apresentam variância constante, podemos fazer um gráfico dos resíduos amostrais contra o regressor ou contra os valores ajustados. Um bom modelo gera um gráfico em que os resíduos não apresentam um padrão e estão em torno de zero.
+
+Em primeiro lugar, vamos salvar os resíduos do modelo e os valores ajustados:
+  
+```{r}
+residuos1 <- regressao1$residuals
+ajustados1 <- regressao1$fitted.values 
+```
+
+E, então, imprimir os gráficos:
+  
+```{r, fig.align='center', out.width='70%'}
+plot(ajustados1, residuos1)
+```
+
+Ainda, para verificar se a sequência de resíduos apresenta variância constante, podemos imprimir um gráfico dos resíduos amostrais ao quadrado (ou em valor abosluto) contra o regressor:
+  
+```{r, fig.align='center', out.width='70%'}
+residuos_quad1 = (residuos1)^2
+plot(educ, residuos_quad1)
+```
+
+A presença de \textit{outliers} pode ser avaliada através de um Box-Plot dos resíduos:
+  
+```{r, fig.align='center', out.width='70%'}
+boxplot(residuos1)
+```
+
+Uma forma simples de obtermos informações sobre possíveis \textit{outliers} / pontos de alavancagem / observações influentes é utilizarmos a função `<influence.measures>`, que inclui os seguintes resultados:
+  
+\begin{itemize}
+\item dfbetas: visa medir a influência de uma observação nas estimativas dos parâmetros;
+\item dfffits e distância de Cook: medem o quanto o valor ajustado de $y_i$ é afetado ao excluir a observação $i$ do ajuste;
+\item covariance ratios: medem o efeito da exclusão de uma observação na variância das estimativas dos parâmetros;
+\item elementos diagonais da matriz H ou matriz chapéu ($h_{ii}$): indicam o quanto $y_i$ afeta o y estimado.
+\end{itemize}
+
+Observações influentes com respeito a qualquer uma destas medidas são marcadas com um asterisco. 
+
+Como vimos em aula, se $x_i$, em uma regressão simples, é tal que $h_{ii} > \frac{4}{n}$, então $x_i$ é um ponto de alavancagem, que pode ser bom ou mau.
+
+```{r}
+influence_measures <- influence.measures(regressao1)
+summary(influence_measures)
+```
+
+Para detectar um mau ponto de alavancagem, usamos os resíduos padronizados. Os resíduos padronizados nos dizem quantos desvios-padrão estimados um dados ponto se encontra distante da reta estimada. Como regra de bolso, dizemos que, em uma amostra grande, um mau ponto de alavancagem tem resíduo padronizado fora do intervalo (-4, 4).
+  
+```{r}
+rstandard <- rstandard(regressao1)
+summary(rstandard)
+badleverage <- which(rstandard >= 4)
+badleverage
+```
+
+  Podemos explorar estes pontos comparando seus valores com as estatísticas descritivas da amostra:
+
+```{r}
+wage1[c(15, 112, 186, 229, 440),c(1, 2)]
+summary(wage)
+summary(educ)
+```
+
+  E se quisermos excluir os maus pontos de alavancagem?
+
+```{r}
+wage2 <- wage1[-c(15, 112, 186, 229, 440), ]
+# attach(wage2)
+```
+
+  Wage2 é uma subamostra de wage1, da qual foram retiradas 5 linhas e nenhuma coluna.
+
+  Para testar se os resíduos são (aproximadamente) normalmente distribuídos, podemos usar o QQ-Plot, ou Gráfico de Distribuição Normal, e o histograma. 
+
+```{r, fig.align='center', out.width='70%'}
+qqnorm(residuos1)
+qqline(residuos1)
+hist(residuos1)
+```
+
+Em nosso exemplo, cada ano adicional de educação acarreta um acréscimo de 54 cents ao salário/hora, independetemente do total de anos de educação do indivíduo. Provavelmente, o problema fica melhor caracterizado em termos de uma variação percentual do salário/hora. Um modelo que retorna um efeito percentual constante é:
+
+```{r}
+regressao3 <- lm(lwage ~ educ)
+summary(regressao3)
+```
+
+Podemos incluir mais variáveis explicativas e estimar um modelo de regressão múltipla. Novamente, iremos salvar os resíduos para realizar diagnósticos do modelo.
+
+```{r}
+regressao4 <- lm(lwage ~ educ + exper + tenure)
+summary(regressao4)
+anova(regressao4)
+residuos4 <- regressao4$residuals
+```
+
+Existem diversos testes para heterocedasticidade. Entre os quais, o teste de Goldfeld-Quandt e o teste de Breusch-Pagan. Para realizar estes testes, precisaremos instalar/carregar alguns pacotes no R:
+  
+```{r, message=FALSE}
+require(lmtest)
+gqtest(regressao4, point = 0.5, fraction = 0)
+bptest(regressao4)
+```
+
+Os argumento "point" da função `<gqtest>` pode ser interpretado como o percentual de observações do começo e do final da amostra que serão usados para a comparação das variâncias. "Fraction" refere-se ao percentual de observações centrais a serem omitidas.
+
+Obs.: O teste de Goldfeld-Quandt tem hipótese nula de homocedasticidade. O teste de Breusch-Pagan tem hipótese nula de heteroscedasticidade.
+
+<!--
+Se estivermos interessados em estimar o modelo através do método de mínimos quadrados ponderados, basta informar o ponderador como um argumento da (já utilizada) função lm:
+
+```{r}
+regressao5 <- lm(lwage ~ educ + exper + tenure, weights = 1/(educ + exper + tenure)^2)
+summary(regressao5)
+summary(regressao4$residuals)
+summary(regressao5$residuals)
+```
+--> 
+
+Para investigar a existência de multicolinearidade, podemos visualizar a matriz de correlação das variáveis explicativas:
+
+```{r}
+x = wage1[, c(2,3,4)]
+head(x)
+cor(x)
+```
+
+Aqui encerramos este exemplo, que procurou cobrir todos os testes apresentados em aula até o momento. Nosso objetivo não foi explorar a qualidade do ajuste do modelo aos dados, mas sim apresentar algumas funções que serão úteis para realizar análise de regressão usando o software R.
+
+# References
+
